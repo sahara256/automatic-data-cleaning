@@ -28,7 +28,7 @@ if uploaded_file:
             uploaded_file.seek(0)
 
             response = requests.post(
-                "https://data-cleaning-api-blsg.onrender.com/clean-data/",
+                "https://data-cleaning-api-blsg.onrender.com/clean-data",
                 files={
                     "file": (
                         uploaded_file.name,
