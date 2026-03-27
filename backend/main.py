@@ -24,6 +24,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.post("/clean-data")
 @app.post("/clean-data/")
 async def clean_data(file: UploadFile = File(...)):
     try:
