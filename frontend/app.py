@@ -10,7 +10,7 @@ st.title("🚀 Auto Data Cleaning AI - Premium")
 st.caption("Upload → Clean → Analyze → Download")
 
 # ✅ API URL (single place)
-API_URL = "https://data-cleaning-api-blsg.onrender.com/clean-data"
+API_URL = "https://data-cleaning-api-blsg.onrender.com/clean-data/"
 
 uploaded_file = st.file_uploader("📂 Upload CSV", type=["csv"])
 
@@ -43,7 +43,7 @@ if uploaded_file:
         )
     },
     timeout=120,
-    allow_redirects=False   # 🔥 IMPORTANT FIX
+    allow_redirects=True  # 🔥 IMPORTANT FIX
 )
             
 
