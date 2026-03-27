@@ -10,7 +10,7 @@ st.title("🚀 Auto Data Cleaning AI - Premium")
 st.caption("Upload → Clean → Analyze → Download")
 
 # ✅ API URL (single place)
-API_URL = "https://data-cleaning-api-blsg.onrender.com/clean-data/"
+API_URL = "https://data-cleaning-api-blsg.onrender.com/clean-data"
 
 uploaded_file = st.file_uploader("📂 Upload CSV", type=["csv"])
 
@@ -34,20 +34,23 @@ if uploaded_file:
             st.write("🔗 API URL:", API_URL)
 
             response = requests.post(
-                API_URL,
-                files={
-                    "file": (
-                        uploaded_file.name,
-                        uploaded_file.getvalue(),
-                        "text/csv"
-                    )
-                },
-                timeout=120
-            )
+    API_URL,
+    files={
+        "file": (
+            uploaded_file.name,
+            uploaded_file.getvalue(),
+            "text/csv"
+        )
+    },
+    timeout=120,
+    allow_redirects=False   # 🔥 IMPORTANT FIX
+)
+            
 
             # 🔥 DEBUG INFO
             st.write("Status:", response.status_code)
             st.write("Response Size:", len(response.content))
+            st.write("Final URL hit:", response.url)
 
             # ❌ Handle 404 specifically
             if response.status_code == 404:
