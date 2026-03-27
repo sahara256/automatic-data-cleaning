@@ -2,19 +2,20 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
 import shutil
-import os
 
 from cleaner import auto_data_cleaner
 
-app = FastAPI()
+app = FastAPI(
+    title="Auto Data Cleaning API",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json"
+)
 
-# ✅ ADD THIS ROOT ROUTE (IMPORTANT)
 @app.get("/")
 def home():
     return {"message": "API is running successfully 🚀"}
 
-
-# ✅ CORS (IMPORTANT)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -23,8 +24,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-# ✅ MAIN API
 @app.post("/clean-data/")
 async def clean_data(file: UploadFile = File(...)):
     try:
