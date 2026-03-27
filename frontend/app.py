@@ -9,6 +9,9 @@ st.set_page_config(page_title="Auto Data Cleaning AI", layout="wide")
 st.title("🚀 Auto Data Cleaning AI - Premium")
 st.caption("Upload → Clean → Analyze → Download")
 
+# ✅ API URL (single place)
+API_URL = "https://data-cleaning-api-blsg.onrender.com/clean-data/"
+
 uploaded_file = st.file_uploader("📂 Upload CSV", type=["csv"])
 
 if uploaded_file:
@@ -27,8 +30,11 @@ if uploaded_file:
         try:
             uploaded_file.seek(0)
 
+            # 🔥 DEBUG: Show URL used
+            st.write("🔗 API URL:", API_URL)
+
             response = requests.post(
-                "https://data-cleaning-api-blsg.onrender.com/clean-data",
+                API_URL,
                 files={
                     "file": (
                         uploaded_file.name,
@@ -39,20 +45,35 @@ if uploaded_file:
                 timeout=120
             )
 
+            # 🔥 DEBUG INFO
             st.write("Status:", response.status_code)
-            st.write("Size:", len(response.content))
+            st.write("Response Size:", len(response.content))
 
+            # ❌ Handle 404 specifically
+            if response.status_code == 404:
+                st.error("❌ API Endpoint Not Found (404)")
+                st.write("👉 Check if backend URL or route is correct")
+                st.stop()
+
+            # ❌ Handle other errors
             if response.status_code != 200:
                 st.error("❌ Backend Error")
                 st.text(response.text)
                 st.stop()
 
+            # ❌ If backend returned JSON error
             if "application/json" in response.headers.get("content-type", ""):
                 st.error("❌ Backend returned error JSON")
                 st.text(response.text)
                 st.stop()
 
-            df_clean = pd.read_excel(BytesIO(response.content), engine="openpyxl")
+            # ✅ Read Excel safely
+            try:
+                df_clean = pd.read_excel(BytesIO(response.content), engine="openpyxl")
+            except Exception:
+                st.error("❌ Failed to read Excel file from backend")
+                st.stop()
+
             quality_score = response.headers.get("X-Quality-Score", "N/A")
 
             st.success("✅ Cleaning Completed!")
@@ -70,6 +91,10 @@ if uploaded_file:
                 response.content,
                 file_name="cleaned_data.xlsx"
             )
+
+        except requests.exceptions.ConnectionError:
+            st.error("❌ Cannot connect to backend API")
+            st.write("👉 Check if backend is running or URL is correct")
 
         except Exception:
             import traceback
