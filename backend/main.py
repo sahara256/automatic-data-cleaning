@@ -12,7 +12,7 @@ app = FastAPI(
     openapi_url="/openapi.json"
 )
 
-@app.get("/")
+@app.get("/test")
 def home():
     return {"message": "API is running successfully 🚀"}
 
