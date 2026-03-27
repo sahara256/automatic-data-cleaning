@@ -8,7 +8,6 @@ from cleaner import auto_data_cleaner
 
 app = FastAPI()
 
-
 # ✅ ADD THIS ROOT ROUTE (IMPORTANT)
 @app.get("/")
 def home():
