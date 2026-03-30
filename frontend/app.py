@@ -11,7 +11,7 @@ st.title("🚀 Auto Data Cleaning AI - Premium")
 st.caption("Upload → Clean → Analyze → Download")
 
 # ✅ API URL (single place)
-API_URL = "https://data-cleaning-api-blsg.onrender.com/clean-data/"
+API_URL = "https://automatic-data-cleaning.onrender.com/clean-data/"
 MAX_FILE_SIZE_MB = 50
 
 uploaded_file = st.file_uploader("📂 Upload CSV", type=["csv"])
