@@ -11,13 +11,10 @@ st.set_page_config(page_title="Auto Data Cleaning AI", layout="wide")
 # ---------------- CUSTOM CSS ----------------
 st.markdown("""
 <style>
-/* Background gradient */
 .stApp {
     background: linear-gradient(135deg, #0f172a, #1e293b);
     color: white;
 }
-
-/* Hero section */
 .hero {
     text-align: center;
     padding: 30px;
@@ -30,8 +27,6 @@ st.markdown("""
     font-size: 18px;
     color: #94a3b8;
 }
-
-/* Glass card */
 .card {
     background: rgba(255,255,255,0.05);
     border-radius: 15px;
@@ -39,8 +34,6 @@ st.markdown("""
     backdrop-filter: blur(12px);
     box-shadow: 0 4px 30px rgba(0,0,0,0.3);
 }
-
-/* Buttons */
 .stButton>button {
     background: linear-gradient(90deg, #6366f1, #8b5cf6);
     color: white;
@@ -48,8 +41,6 @@ st.markdown("""
     height: 50px;
     font-size: 18px;
 }
-
-/* Metrics */
 [data-testid="stMetric"] {
     background: rgba(255,255,255,0.05);
     padding: 15px;
@@ -75,10 +66,17 @@ with st.sidebar:
 # ---------------- API ----------------
 API_URL = "https://automatic-data-cleaning.onrender.com/clean-data/"
 
-# ---------------- UPLOAD ----------------
+# ---------------- FILE UPLOAD ----------------
 uploaded_file = st.file_uploader("📂 Upload CSV", type=["csv"])
 
 if uploaded_file:
+
+    # -------- FILE SIZE CHECK --------
+    file_size_mb = len(uploaded_file.getvalue()) / (1024 * 1024)
+    if file_size_mb > MAX_FILE_SIZE_MB:
+        st.error(f"❌ File too large ({file_size_mb:.1f}MB)")
+        st.stop()
+
     df = pd.read_csv(uploaded_file)
 
     # -------- METRICS --------
@@ -106,12 +104,10 @@ if uploaded_file:
 
             if len(numeric_cols) > 0:
                 col = st.selectbox("Select Column", numeric_cols)
-
                 fig = px.histogram(df, x=col)
                 st.plotly_chart(fig, use_container_width=True)
-
             else:
-                st.info("No numeric columns for visualization")
+                st.info("No numeric columns available")
 
     # -------- CLEAN --------
     with tab3:
@@ -128,23 +124,53 @@ if uploaded_file:
             try:
                 uploaded_file.seek(0)
 
+                # ✅ FIXED REQUEST
                 response = requests.post(
                     API_URL,
-                    files={"file": uploaded_file.getvalue()},
+                    files={
+                        "file": (
+                            uploaded_file.name,
+                            uploaded_file.getvalue(),
+                            "text/csv"
+                        )
+                    },
                     timeout=120
                 )
 
-                df_clean = pd.read_excel(BytesIO(response.content))
+                # -------- DEBUG --------
+                st.write("Status:", response.status_code)
+                st.write("Content-Type:", response.headers.get("content-type"))
+
+                # ❌ ERROR HANDLING
+                if response.status_code != 200:
+                    st.error("❌ Backend Error")
+                    st.text(response.text)
+                    st.stop()
+
+                content_type = response.headers.get("content-type", "")
+
+                if "application/json" in content_type:
+                    st.error("❌ Backend returned JSON error")
+                    st.text(response.text)
+                    st.stop()
+
+                if "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" not in content_type:
+                    st.error("❌ Invalid response (Not Excel)")
+                    st.text(response.text[:300])
+                    st.stop()
+
+                # ✅ READ EXCEL
+                df_clean = pd.read_excel(BytesIO(response.content), engine="openpyxl")
 
                 st.success("✅ Cleaning Completed!")
 
-                # Metrics
+                # -------- METRICS --------
                 col1, col2, col3 = st.columns(3)
                 col1.metric("Rows", df_clean.shape[0])
                 col2.metric("Columns", df_clean.shape[1])
                 col3.metric("Quality Score", response.headers.get("X-Quality-Score", "N/A"))
 
-                # Cleaned data
+                # -------- CLEANED DATA --------
                 st.dataframe(df_clean.head(10), use_container_width=True)
 
                 st.download_button(
@@ -153,8 +179,14 @@ if uploaded_file:
                     file_name="cleaned.xlsx"
                 )
 
+            except requests.exceptions.ConnectionError:
+                st.error("❌ Cannot connect to backend")
+
+            except requests.exceptions.Timeout:
+                st.error("❌ Request Timeout")
+
             except Exception as e:
-                st.error("Error")
+                st.error("❌ Unexpected Error")
                 st.text(str(e))
 
 else:
