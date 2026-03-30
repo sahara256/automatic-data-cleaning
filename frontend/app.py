@@ -15,37 +15,108 @@ def load_lottie(url):
 lottie_loading = load_lottie("https://assets10.lottiefiles.com/packages/lf20_usmfx6bp.json")
 lottie_empty = load_lottie("https://assets2.lottiefiles.com/packages/lf20_qp1q7mct.json")
 
-# ---------------- CSS ----------------
+# ---------------- PREMIUM CSS ----------------
 st.markdown("""
 <style>
+
+/* BACKGROUND */
 .stApp {
-    background: linear-gradient(135deg, #0f172a, #020617);
+    background: radial-gradient(circle at top, #0f172a, #020617);
     color: #e2e8f0;
     font-family: 'Inter', sans-serif;
 }
+
+/* HERO */
 .hero {
     text-align: center;
-    padding: 30px;
+    padding: 40px 20px;
 }
 .hero h1 {
-    font-size: 50px;
-    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    font-size: 52px;
+    font-weight: 800;
+    background: linear-gradient(90deg, #00f5ff, #6366f1, #a855f7);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
-.card {
-    background: rgba(255,255,255,0.05);
-    padding: 20px;
-    border-radius: 15px;
-    backdrop-filter: blur(12px);
-    margin-bottom: 20px;
+.hero p {
+    color: #94a3b8;
+    font-size: 18px;
 }
+
+/* CARD */
+.card {
+    background: linear-gradient(145deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+    border-radius: 18px;
+    padding: 20px;
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    transition: 0.3s ease;
+}
+.card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 20px 60px rgba(99,102,241,0.3);
+}
+
+/* METRICS */
+[data-testid="stMetric"] {
+    background: linear-gradient(145deg, rgba(99,102,241,0.15), rgba(168,85,247,0.08));
+    padding: 15px;
+    border-radius: 14px;
+}
+
+/* BUTTON */
 .stButton>button {
-    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    background: linear-gradient(90deg, #00f5ff, #6366f1, #a855f7);
     color: white;
     border-radius: 12px;
-    height: 45px;
+    height: 48px;
+    font-size: 16px;
+    border: none;
 }
+.stButton>button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 20px rgba(99,102,241,0.6);
+}
+
+/* DOWNLOAD BUTTON */
+.stDownloadButton>button {
+    background: linear-gradient(90deg, #22c55e, #10b981);
+    border-radius: 12px;
+}
+
+/* FILE UPLOADER */
+[data-testid="stFileUploader"] {
+    border: 2px dashed #6366f1;
+    border-radius: 14px;
+    padding: 15px;
+    background: rgba(255,255,255,0.02);
+}
+
+/* TABS */
+.stTabs [data-baseweb="tab"] {
+    font-size: 16px;
+    font-weight: 600;
+    color: #94a3b8;
+}
+.stTabs [aria-selected="true"] {
+    color: #00f5ff !important;
+    border-bottom: 3px solid #6366f1;
+}
+
+/* SIDEBAR */
+section[data-testid="stSidebar"] {
+    background: #020617;
+}
+
+/* CHAT STYLE */
+[data-testid="stChatMessage"] {
+    background: rgba(99,102,241,0.08);
+    border-radius: 12px;
+    padding: 10px;
+    margin-bottom: 8px;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -76,7 +147,6 @@ df = pd.read_csv(uploaded_file)
 
 # ---------------- METRICS ----------------
 st.subheader("📊 Dataset Overview")
-
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Rows", df.shape[0])
 c2.metric("Columns", df.shape[1])
@@ -97,16 +167,19 @@ col1, col2 = st.columns(2)
 with col1:
     if len(numeric_cols) > 0:
         fig = px.histogram(df, x=numeric_cols[0], title="Distribution")
+        fig.update_layout(template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)")
         st.plotly_chart(fig, use_container_width=True)
 
 with col2:
     missing = df.isnull().sum()
     fig2 = px.bar(x=missing.index, y=missing.values, title="Missing Values")
+    fig2.update_layout(template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)")
     st.plotly_chart(fig2, use_container_width=True)
 
 if len(numeric_cols) > 1:
     corr = df[numeric_cols].corr()
     fig3 = px.imshow(corr, text_auto=True, title="Correlation Heatmap")
+    fig3.update_layout(template="plotly_dark")
     st.plotly_chart(fig3, use_container_width=True)
 
 # ---------------- AI INSIGHTS ----------------
@@ -153,13 +226,6 @@ if run_clean:
 
         if response.status_code != 200:
             st.error("Backend error")
-            st.text(response.text)
-            st.stop()
-
-        content_type = response.headers.get("content-type", "")
-
-        if "application/json" in content_type:
-            st.error("Backend returned error")
             st.text(response.text)
             st.stop()
 
