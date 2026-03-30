@@ -1,19 +1,27 @@
 import streamlit as st
 import requests
 import pandas as pd
-import time
 from io import BytesIO
 import plotly.express as px
+from streamlit_lottie import st_lottie
 
-# ---------------- PAGE CONFIG ----------------
+# ---------------- CONFIG ----------------
 st.set_page_config(page_title="Auto Data Cleaning AI", layout="wide")
 
-# ---------------- CUSTOM CSS ----------------
+# ---------------- LOTTIE ----------------
+def load_lottie(url):
+    return requests.get(url).json()
+
+lottie_loading = load_lottie("https://assets10.lottiefiles.com/packages/lf20_usmfx6bp.json")
+lottie_empty = load_lottie("https://assets2.lottiefiles.com/packages/lf20_qp1q7mct.json")
+
+# ---------------- CSS ----------------
 st.markdown("""
 <style>
 .stApp {
-    background: linear-gradient(135deg, #0f172a, #1e293b);
-    color: white;
+    background: linear-gradient(135deg, #0f172a, #020617);
+    color: #e2e8f0;
+    font-family: 'Inter', sans-serif;
 }
 .hero {
     text-align: center;
@@ -21,173 +29,158 @@ st.markdown("""
 }
 .hero h1 {
     font-size: 50px;
-    font-weight: bold;
-}
-.hero p {
-    font-size: 18px;
-    color: #94a3b8;
+    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 .card {
     background: rgba(255,255,255,0.05);
-    border-radius: 15px;
     padding: 20px;
+    border-radius: 15px;
     backdrop-filter: blur(12px);
-    box-shadow: 0 4px 30px rgba(0,0,0,0.3);
+    margin-bottom: 20px;
 }
 .stButton>button {
     background: linear-gradient(90deg, #6366f1, #8b5cf6);
     color: white;
     border-radius: 12px;
-    height: 50px;
-    font-size: 18px;
-}
-[data-testid="stMetric"] {
-    background: rgba(255,255,255,0.05);
-    padding: 15px;
-    border-radius: 12px;
+    height: 45px;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------- HERO ----------------
+# ---------------- HEADER ----------------
 st.markdown("""
 <div class="hero">
-    <h1>✨ Auto Data Cleaning AI</h1>
-    <p>Upload → Clean → Analyze → Download in Seconds 🚀</p>
+<h1>✨ Auto Data Cleaning AI</h1>
+<p>Upload → Analyze → Clean → Download</p>
 </div>
 """, unsafe_allow_html=True)
 
 # ---------------- SIDEBAR ----------------
 with st.sidebar:
-    st.header("⚙️ Control Panel")
-    MAX_FILE_SIZE_MB = st.slider("Max File Size (MB)", 10, 100, 50)
-    show_charts = st.toggle("Enable Charts", True)
+    st.header("⚙️ Controls")
+    uploaded_file = st.file_uploader("Upload CSV", type=["csv"])
+    run_clean = st.button("🚀 Run Cleaning")
 
-# ---------------- API ----------------
 API_URL = "https://automatic-data-cleaning.onrender.com/clean-data/"
 
-# ---------------- FILE UPLOAD ----------------
-uploaded_file = st.file_uploader("📂 Upload CSV", type=["csv"])
+# ---------------- EMPTY STATE ----------------
+if not uploaded_file:
+    st_lottie(lottie_empty, height=250)
+    st.info("Upload a dataset to begin")
+    st.stop()
 
-if uploaded_file:
+# ---------------- LOAD DATA ----------------
+df = pd.read_csv(uploaded_file)
 
-    # -------- FILE SIZE CHECK --------
-    file_size_mb = len(uploaded_file.getvalue()) / (1024 * 1024)
-    if file_size_mb > MAX_FILE_SIZE_MB:
-        st.error(f"❌ File too large ({file_size_mb:.1f}MB)")
-        st.stop()
+# ---------------- METRICS ----------------
+st.subheader("📊 Dataset Overview")
 
-    df = pd.read_csv(uploaded_file)
+c1, c2, c3, c4 = st.columns(4)
+c1.metric("Rows", df.shape[0])
+c2.metric("Columns", df.shape[1])
+c3.metric("Missing", df.isnull().sum().sum())
+c4.metric("Duplicates", df.duplicated().sum())
 
-    # -------- METRICS --------
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Rows", df.shape[0])
-    col2.metric("Columns", df.shape[1])
-    col3.metric("Missing", df.isnull().sum().sum())
-    col4.metric("Duplicates", df.duplicated().sum())
+# ---------------- PREVIEW ----------------
+st.subheader("📄 Preview")
+st.dataframe(df.head(10), use_container_width=True)
 
-    # -------- TABS --------
-    tab1, tab2, tab3 = st.tabs(["📄 Preview", "📊 Analytics", "⚡ Clean"])
+# ---------------- DASHBOARD ----------------
+st.subheader("📊 Analytics Dashboard")
 
-    # -------- PREVIEW --------
-    with tab1:
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.dataframe(df.head(10), use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+numeric_cols = df.select_dtypes(include='number').columns
 
-    # -------- ANALYTICS --------
-    with tab2:
-        if show_charts:
-            st.subheader("📊 Data Visualization")
+col1, col2 = st.columns(2)
 
-            numeric_cols = df.select_dtypes(include=['number']).columns
+with col1:
+    if len(numeric_cols) > 0:
+        fig = px.histogram(df, x=numeric_cols[0], title="Distribution")
+        st.plotly_chart(fig, use_container_width=True)
 
-            if len(numeric_cols) > 0:
-                col = st.selectbox("Select Column", numeric_cols)
-                fig = px.histogram(df, x=col)
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.info("No numeric columns available")
+with col2:
+    missing = df.isnull().sum()
+    fig2 = px.bar(x=missing.index, y=missing.values, title="Missing Values")
+    st.plotly_chart(fig2, use_container_width=True)
 
-    # -------- CLEAN --------
-    with tab3:
-        if st.button("🚀 Run AI Cleaning"):
+if len(numeric_cols) > 1:
+    corr = df[numeric_cols].corr()
+    fig3 = px.imshow(corr, text_auto=True, title="Correlation Heatmap")
+    st.plotly_chart(fig3, use_container_width=True)
 
-            progress = st.progress(0)
-            status = st.empty()
+# ---------------- AI INSIGHTS ----------------
+st.subheader("🤖 AI Insights")
 
-            for i in range(100):
-                time.sleep(0.01)
-                progress.progress(i + 1)
-                status.text(f"Processing {i+1}%")
+insights = []
+missing_total = df.isnull().sum().sum()
+duplicates = df.duplicated().sum()
 
-            try:
-                uploaded_file.seek(0)
+if missing_total > 0:
+    insights.append(f"⚠️ Dataset contains {missing_total} missing values")
 
-                # ✅ FIXED REQUEST
-                response = requests.post(
-                    API_URL,
-                    files={
-                        "file": (
-                            uploaded_file.name,
-                            uploaded_file.getvalue(),
-                            "text/csv"
-                        )
-                    },
-                    timeout=120
-                )
+if duplicates > 0:
+    insights.append(f"⚠️ Found {duplicates} duplicate rows")
 
-                # -------- DEBUG --------
-                st.write("Status:", response.status_code)
-                st.write("Content-Type:", response.headers.get("content-type"))
+if len(df.columns) > 10:
+    insights.append("📊 Large dataset — consider feature selection")
 
-                # ❌ ERROR HANDLING
-                if response.status_code != 200:
-                    st.error("❌ Backend Error")
-                    st.text(response.text)
-                    st.stop()
-
-                content_type = response.headers.get("content-type", "")
-
-                if "application/json" in content_type:
-                    st.error("❌ Backend returned JSON error")
-                    st.text(response.text)
-                    st.stop()
-
-                if "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" not in content_type:
-                    st.error("❌ Invalid response (Not Excel)")
-                    st.text(response.text[:300])
-                    st.stop()
-
-                # ✅ READ EXCEL
-                df_clean = pd.read_excel(BytesIO(response.content), engine="openpyxl")
-
-                st.success("✅ Cleaning Completed!")
-
-                # -------- METRICS --------
-                col1, col2, col3 = st.columns(3)
-                col1.metric("Rows", df_clean.shape[0])
-                col2.metric("Columns", df_clean.shape[1])
-                col3.metric("Quality Score", response.headers.get("X-Quality-Score", "N/A"))
-
-                # -------- CLEANED DATA --------
-                st.dataframe(df_clean.head(10), use_container_width=True)
-
-                st.download_button(
-                    "📥 Download Cleaned Data",
-                    response.content,
-                    file_name="cleaned.xlsx"
-                )
-
-            except requests.exceptions.ConnectionError:
-                st.error("❌ Cannot connect to backend")
-
-            except requests.exceptions.Timeout:
-                st.error("❌ Request Timeout")
-
-            except Exception as e:
-                st.error("❌ Unexpected Error")
-                st.text(str(e))
-
+if insights:
+    for msg in insights:
+        st.chat_message("assistant").write(msg)
 else:
-    st.info("👆 Upload your dataset to begin")
+    st.chat_message("assistant").write("✅ Dataset looks clean!")
+
+# ---------------- CLEAN ----------------
+if run_clean:
+    try:
+        uploaded_file.seek(0)
+
+        st_lottie(lottie_loading, height=200)
+        st.info("AI is cleaning your data...")
+
+        response = requests.post(
+            API_URL,
+            files={
+                "file": (
+                    uploaded_file.name,
+                    uploaded_file.getvalue(),
+                    "text/csv"
+                )
+            },
+            timeout=120
+        )
+
+        if response.status_code != 200:
+            st.error("Backend error")
+            st.text(response.text)
+            st.stop()
+
+        content_type = response.headers.get("content-type", "")
+
+        if "application/json" in content_type:
+            st.error("Backend returned error")
+            st.text(response.text)
+            st.stop()
+
+        df_clean = pd.read_excel(BytesIO(response.content), engine="openpyxl")
+
+        st.success("✅ Cleaning Completed")
+
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Rows", df_clean.shape[0])
+        c2.metric("Columns", df_clean.shape[1])
+        c3.metric("Quality Score", response.headers.get("X-Quality-Score", "N/A"))
+
+        st.subheader("✨ Cleaned Data")
+        st.dataframe(df_clean.head(10), use_container_width=True)
+
+        st.download_button(
+            "📥 Download Cleaned File",
+            response.content,
+            file_name="cleaned.xlsx"
+        )
+
+    except Exception as e:
+        st.error("Error occurred")
+        st.text(str(e))
