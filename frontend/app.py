@@ -2,231 +2,187 @@ import streamlit as st
 import requests
 import pandas as pd
 from io import BytesIO
-import plotly.express as px
+import time
 
 # ---------------- CONFIG ----------------
-st.set_page_config(page_title="Auto Data Cleaning AI", layout="wide")
+st.set_page_config(page_title="Auto Data Cleaning AI", layout="centered")
 
 API_URL = "https://automatic-data-cleaning.onrender.com/clean-data/"
 
-# ---------------- UTILITY FUNCTIONS ----------------
-def safe_read_csv(file):
-    try:
-        return pd.read_csv(file)
-    except Exception as e:
-        st.error("❌ Failed to read CSV file")
-        st.text(str(e))
-        return None
-
-
-def compute_metrics(df):
-    return {
-        "rows": df.shape[0],
-        "cols": df.shape[1],
-        "missing": int(df.isnull().sum().sum()),
-        "duplicates": int(df.duplicated().sum())
-    }
-
-
+# ---------------- FUNCTIONS ----------------
 def call_backend(file):
-    try:
-        file.seek(0)
-        response = requests.post(
-            API_URL,
-            files={
-                "file": (
-                    file.name,
-                    file.getvalue(),
-                    "text/csv"
-                )
-            },
-            timeout=120
-        )
-        return response
-    except requests.exceptions.ConnectionError:
-        st.error("❌ Cannot connect to backend")
-    except requests.exceptions.Timeout:
-        st.error("❌ Backend timeout")
-    return None
-
+    file.seek(0)
+    return requests.post(
+        API_URL,
+        files={"file": (file.name, file.getvalue(), "text/csv")},
+        timeout=120
+    )
 
 def parse_cleaned_data(response):
-    try:
-        return pd.read_excel(BytesIO(response.content), engine="openpyxl")
-    except Exception:
-        st.error("❌ Invalid Excel response from backend")
-        return None
+    return pd.read_excel(BytesIO(response.content), engine="openpyxl")
 
 
-# ---------------- CSS (UNCHANGED FROM YOUR DESIGN) ----------------
+# ---------------- STYLE + ANIMATIONS ----------------
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-* { font-family: 'Inter', sans-serif; }
 
+/* BACKGROUND */
 .stApp {
-    background: linear-gradient(180deg, #0a0f1f, #0d1526);
-    color: #e2e8f0;
-}
-
-section[data-testid="stSidebar"] {
-    background-color: #0a1020 !important;
-    border-right: 1px solid #1e2d4a;
-}
-
-.main-header {
+    background: radial-gradient(circle at top, #0f172a, #020617);
+    color: white;
     text-align: center;
-    padding: 40px 0 30px;
 }
-.main-header h1 {
-    font-size: 40px;
+
+/* TITLE */
+.title {
+    font-size: 48px;
     font-weight: 800;
-}
-.main-header p {
-    color: #64748b;
-    font-size: 16px;
+    background: linear-gradient(90deg, #38bdf8, #6366f1);
+    -webkit-background-clip: text;
+    color: transparent;
 }
 
-.kpi-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 18px;
-    margin-bottom: 32px;
+/* SUBTITLE */
+.subtitle {
+    color: #94a3b8;
+    margin-bottom: 25px;
 }
-.kpi-card {
-    background: linear-gradient(180deg, #111e35, #0f1a2e);
-    border: 1px solid #1e2d4a;
-    border-radius: 14px;
+
+/* ANIMATION ICON */
+.clean-animation {
+    font-size: 70px;
+    animation: bounce 2s infinite;
+}
+
+/* CLEANING DOTS */
+.loading-dots::after {
+    content: '';
+    animation: dots 1.5s steps(4, end) infinite;
+}
+@keyframes dots {
+    0% {content: '';}
+    25% {content: '.';}
+    50% {content: '..';}
+    75% {content: '...';}
+}
+
+/* BOUNCE */
+@keyframes bounce {
+    0%,100% {transform: translateY(0);}
+    50% {transform: translateY(-15px);}
+}
+
+/* CARD */
+.card {
     padding: 20px;
-    display: flex;
-    gap: 12px;
-}
-.kpi-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+    border-radius: 15px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    margin-top: 15px;
 }
 
-.clean-card {
-    background: #111e35;
-    border: 1px solid #1e2d4a;
-    border-radius: 16px;
-    padding: 28px;
-    margin-top: 16px;
+/* BUTTON */
+.stButton>button {
+    width: 100%;
+    background: linear-gradient(90deg, #6366f1, #3b82f6);
+    color: white;
+    border-radius: 10px;
+    height: 45px;
 }
+
+/* PROGRESS BAR */
+.progress-bar {
+    height: 10px;
+    border-radius: 10px;
+    background: linear-gradient(90deg, #6366f1, #3b82f6);
+    animation: progressAnim 3s linear forwards;
+}
+
+@keyframes progressAnim {
+    from {width: 0%;}
+    to {width: 100%;}
+}
+
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------- SIDEBAR ----------------
-with st.sidebar:
-    st.header("📂 Upload Dataset")
-    uploaded_file = st.file_uploader("Upload CSV", type=["csv"])
-    run_clean = st.button("🚀 Clean Data", use_container_width=True)
+# ---------------- UI ----------------
 
-# ---------------- HEADER ----------------
-st.markdown("""
-<div class="main-header">
-<h1>Auto Data Cleaning AI</h1>
-<p>Clean, Analyze & Prepare Data in Seconds</p>
-</div>
-""", unsafe_allow_html=True)
+# TITLE
+st.markdown('<div class="title">🚀 Auto Data Cleaning AI</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle">Clean • Analyze • Transform instantly</div>', unsafe_allow_html=True)
 
-# ---------------- MAIN ----------------
-if uploaded_file:
+# 🎬 ANIMATION (PURE CSS)
+st.markdown('<div class="clean-animation">🧹</div>', unsafe_allow_html=True)
 
-    df = safe_read_csv(uploaded_file)
-    if df is None:
-        st.stop()
+# UPLOAD
+st.markdown("### 📂 Upload CSV")
+uploaded_file = st.file_uploader("Choose CSV file", type=["csv"])
 
-    metrics = compute_metrics(df)
+# BUTTON
+run_clean = st.button("🚀 Clean Data")
 
-    # -------- KPI --------
-    st.markdown("### 📊 Overview")
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Rows", f"{metrics['rows']:,}")
-    col2.metric("Columns", metrics["cols"])
-    col3.metric("Missing", f"{metrics['missing']:,}")
-    col4.metric("Duplicates", metrics["duplicates"])
+# ---------------- PROCESS ----------------
+if uploaded_file and run_clean:
 
-    st.divider()
+    # 🔄 FAKE PROGRESS UI
+    st.markdown("### ⚡ Processing")
+    st.markdown('<div class="progress-bar"></div>', unsafe_allow_html=True)
 
-    # -------- TABS --------
-    tab1, tab2, tab3 = st.tabs(["📊 Dashboard", "📄 Data", "🤖 Insights"])
+    status = st.empty()
 
-    # DASHBOARD
-    with tab1:
-        st.markdown("### 📊 Analytics")
+    steps = [
+        "Uploading file",
+        "Analyzing data",
+        "Cleaning missing values",
+        "Removing duplicates",
+        "Finalizing"
+    ]
 
-        num_cols = df.select_dtypes(include="number").columns.tolist()
+    for step in steps:
+        status.markdown(f"**{step}** <span class='loading-dots'></span>", unsafe_allow_html=True)
+        time.sleep(0.7)
 
-        if num_cols:
-            col = st.selectbox("Select column", num_cols)
-            fig = px.histogram(df, x=col)
-            fig.update_layout(template="plotly_dark")
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.warning("No numeric columns available")
+    # CALL BACKEND
+    response = call_backend(uploaded_file)
 
-    # DATA
-    with tab2:
-        st.dataframe(df.head(20), use_container_width=True)
+    if response and response.status_code == 200:
 
-    # INSIGHTS
-    with tab3:
-        if metrics["missing"] > 0:
-            st.warning(f"{metrics['missing']} missing values detected")
-        if metrics["duplicates"] > 0:
-            st.warning(f"{metrics['duplicates']} duplicate rows found")
-        if metrics["missing"] == 0 and metrics["duplicates"] == 0:
-            st.success("Dataset looks clean")
+        df_clean = parse_cleaned_data(response)
 
-    st.divider()
+        if df_clean is not None:
 
-    # -------- CLEAN --------
-    st.markdown('<div class="clean-card">', unsafe_allow_html=True)
-    st.markdown("### 🚀 Clean Dataset")
+            st.success("✅ Cleaning Completed")
 
-    if run_clean:
-        try:
-            with st.spinner("Processing..."):
+            # 🔥 BEFORE vs AFTER
+            st.markdown("## 🔄 Before vs After")
 
-                response = call_backend(uploaded_file)
+            col1, col2 = st.columns(2)
 
-                if response is None:
-                    st.stop()
+            with col1:
+                st.markdown("### 📄 Original")
+                df_original = pd.read_csv(uploaded_file)
+                st.dataframe(df_original.head(10), use_container_width=True)
 
-                if response.status_code != 200:
-                    st.error("Backend error")
-                    st.text(response.text)
-                    st.stop()
-
-                df_clean = parse_cleaned_data(response)
-                if df_clean is None:
-                    st.stop()
-
-                st.success("Cleaning completed")
-
-                clean_metrics = compute_metrics(df_clean)
-
-                c1, c2, c3 = st.columns(3)
-                c1.metric("Rows", f"{clean_metrics['rows']:,}")
-                c2.metric("Columns", clean_metrics["cols"])
-                c3.metric("Quality Score", response.headers.get("X-Quality-Score", "N/A"))
-
+            with col2:
+                st.markdown("### ✨ Cleaned")
                 st.dataframe(df_clean.head(10), use_container_width=True)
 
-                st.download_button(
-                    "Download Cleaned Data",
-                    response.content,
-                    file_name="cleaned.xlsx",
-                    use_container_width=True
-                )
+            st.divider()
 
-        except Exception as e:
-            st.error("Unexpected error")
-            st.text(str(e))
+            # FINAL DATA
+            st.markdown("## 📊 Cleaned Dataset")
+            st.dataframe(df_clean, use_container_width=True)
 
-    st.markdown("</div>", unsafe_allow_html=True)
+            # DOWNLOAD
+            st.download_button(
+                "⬇ Download Cleaned Data",
+                response.content,
+                file_name="cleaned.xlsx"
+            )
 
-else:
-    st.info("Upload a dataset to begin")
-    
+        else:
+            st.error("Invalid response")
+
+    else:
+        st.error("Backend failed")
