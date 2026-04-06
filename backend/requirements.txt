@@ -2,6 +2,5 @@ fastapi
 uvicorn
 pandas
 numpy
-scikit-learn
 openpyxl
 python-multipart
