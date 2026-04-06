@@ -7,7 +7,7 @@ from pathlib import Path
 from io import BytesIO
 import pandas as pd
 
-from cleaner import auto_data_cleaner
+from backend.cleaner import auto_data_cleaner
 
 # ---------------- LOGGING ----------------
 logging.basicConfig(level=logging.INFO)
