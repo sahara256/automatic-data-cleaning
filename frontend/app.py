@@ -7,8 +7,7 @@ import time
 # ---------------- CONFIG ----------------
 st.set_page_config(page_title="Auto Data Cleaning AI", layout="centered")
 
-# ✅ CORRECT BACKEND URL
-API_URL = "https://automatic-data-cleaning-5.onrender.com/clean-data/"
+API_URL = "https://automatic-data-cleaning-6.onrender.com/clean-data/"
 
 
 # ---------------- FUNCTIONS ----------------
