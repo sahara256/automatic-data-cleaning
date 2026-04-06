@@ -7,22 +7,40 @@ import time
 # ---------------- CONFIG ----------------
 st.set_page_config(page_title="Auto Data Cleaning AI", layout="centered")
 
-API_URL = "https://automatic-data-cleaning.onrender.com/clean-data/"
+# ✅ CORRECT BACKEND URL
+API_URL = "https://automatic-data-cleaning-5.onrender.com/clean-data/"
+
 
 # ---------------- FUNCTIONS ----------------
 def call_backend(file):
-    file.seek(0)
-    return requests.post(
-        API_URL,
-        files={"file": (file.name, file.getvalue(), "text/csv")},
-        timeout=120
-    )
+    try:
+        file.seek(0)
+        response = requests.post(
+            API_URL,
+            files={
+                "file": (
+                    file.name,
+                    file.getvalue(),
+                    "text/csv"
+                )
+            },
+            timeout=120
+        )
+        return response
+    except Exception as e:
+        st.error(f"❌ Connection error: {e}")
+        return None
+
 
 def parse_cleaned_data(response):
-    return pd.read_excel(BytesIO(response.content), engine="openpyxl")
+    try:
+        return pd.read_excel(BytesIO(response.content), engine="openpyxl")
+    except Exception as e:
+        st.error(f"❌ Error reading cleaned file: {e}")
+        return None
 
 
-# ---------------- STYLE + ANIMATIONS ----------------
+# ---------------- STYLE ----------------
 st.markdown("""
 <style>
 
@@ -48,46 +66,15 @@ st.markdown("""
     margin-bottom: 25px;
 }
 
-/* ANIMATION ICON */
+/* ANIMATION */
 .clean-animation {
     font-size: 70px;
     animation: bounce 2s infinite;
 }
 
-/* CLEANING DOTS */
-.loading-dots::after {
-    content: '';
-    animation: dots 1.5s steps(4, end) infinite;
-}
-@keyframes dots {
-    0% {content: '';}
-    25% {content: '.';}
-    50% {content: '..';}
-    75% {content: '...';}
-}
-
-/* BOUNCE */
 @keyframes bounce {
     0%,100% {transform: translateY(0);}
     50% {transform: translateY(-15px);}
-}
-
-/* CARD */
-.card {
-    padding: 20px;
-    border-radius: 15px;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.1);
-    margin-top: 15px;
-}
-
-/* BUTTON */
-.stButton>button {
-    width: 100%;
-    background: linear-gradient(90deg, #6366f1, #3b82f6);
-    color: white;
-    border-radius: 10px;
-    height: 45px;
 }
 
 /* PROGRESS BAR */
@@ -103,29 +90,36 @@ st.markdown("""
     to {width: 100%;}
 }
 
+/* BUTTON */
+.stButton>button {
+    width: 100%;
+    background: linear-gradient(90deg, #6366f1, #3b82f6);
+    color: white;
+    border-radius: 10px;
+    height: 45px;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
 # ---------------- UI ----------------
 
-# TITLE
 st.markdown('<div class="title">🚀 Auto Data Cleaning AI</div>', unsafe_allow_html=True)
 st.markdown('<div class="subtitle">Clean • Analyze • Transform instantly</div>', unsafe_allow_html=True)
 
-# 🎬 ANIMATION (PURE CSS)
+# Animation
 st.markdown('<div class="clean-animation">🧹</div>', unsafe_allow_html=True)
 
-# UPLOAD
+# Upload
 st.markdown("### 📂 Upload CSV")
 uploaded_file = st.file_uploader("Choose CSV file", type=["csv"])
 
-# BUTTON
+# Button
 run_clean = st.button("🚀 Clean Data")
 
 # ---------------- PROCESS ----------------
 if uploaded_file and run_clean:
 
-    # 🔄 FAKE PROGRESS UI
     st.markdown("### ⚡ Processing")
     st.markdown('<div class="progress-bar"></div>', unsafe_allow_html=True)
 
@@ -140,27 +134,35 @@ if uploaded_file and run_clean:
     ]
 
     for step in steps:
-        status.markdown(f"**{step}** <span class='loading-dots'></span>", unsafe_allow_html=True)
-        time.sleep(0.7)
+        status.markdown(f"**{step}...**")
+        time.sleep(0.6)
 
-    # CALL BACKEND
+    # 🔥 CALL BACKEND
     response = call_backend(uploaded_file)
 
-    if response and response.status_code == 200:
+    # ---------------- ERROR HANDLING ----------------
+    if response is None:
+        st.error("❌ No response from backend")
 
+    elif response.status_code != 200:
+        st.error(f"❌ Backend error: {response.status_code}")
+        st.text(response.text)
+
+    else:
         df_clean = parse_cleaned_data(response)
 
         if df_clean is not None:
 
             st.success("✅ Cleaning Completed")
 
-            # 🔥 BEFORE vs AFTER
+            # 🔄 BEFORE vs AFTER
             st.markdown("## 🔄 Before vs After")
 
             col1, col2 = st.columns(2)
 
             with col1:
                 st.markdown("### 📄 Original")
+                uploaded_file.seek(0)  # IMPORTANT
                 df_original = pd.read_csv(uploaded_file)
                 st.dataframe(df_original.head(10), use_container_width=True)
 
@@ -170,11 +172,11 @@ if uploaded_file and run_clean:
 
             st.divider()
 
-            # FINAL DATA
+            # 📊 FINAL DATA
             st.markdown("## 📊 Cleaned Dataset")
             st.dataframe(df_clean, use_container_width=True)
 
-            # DOWNLOAD
+            # ⬇ DOWNLOAD
             st.download_button(
                 "⬇ Download Cleaned Data",
                 response.content,
@@ -182,7 +184,4 @@ if uploaded_file and run_clean:
             )
 
         else:
-            st.error("Invalid response")
-
-    else:
-        st.error("Backend failed")
+            st.error("❌ Failed to parse cleaned data")
